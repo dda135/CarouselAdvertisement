@@ -29,6 +29,7 @@ public class ViewActivity extends FragmentActivity{
         images.add(R.drawable.share_weibo_btn);
         images.add(R.drawable.share_weixin_btn);
         imageAdapter.updateCollections(images);
+        imageAdapter.shouldHoldCache(false);
         loopPager.setAdapter(imageAdapter);
     }
 

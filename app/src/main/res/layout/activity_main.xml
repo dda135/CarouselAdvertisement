@@ -31,4 +31,11 @@
         android:text="fragment_state_pager_mode"
         />
 
+    <Button
+        android:id="@+id/btn_carousel_advertisement"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="carousel_advertisement"
+        />
+
 </LinearLayout>

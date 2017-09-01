@@ -19,6 +19,7 @@
         <activity android:name=".ViewActivity"/>
         <activity android:name=".FragmentPagerActivity"/>
         <activity android:name=".FragmentStateActivity"/>
+        <activity android:name=".CarouselAdvertisementActivity"/>
     </application>
 
 </manifest>

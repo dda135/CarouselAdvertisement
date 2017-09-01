@@ -4,7 +4,10 @@ import android.content.Context;
 import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.Scroller;
 
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -15,6 +18,10 @@ import java.util.List;
 * @note
 **/
 public class LoopPager extends ViewPager {
+    private boolean shouldLoop;
+    private Scroller mScroller;
+    private int smoothTime;
+
     public LoopPager(Context context) {
         this(context,null);
     }
@@ -24,19 +31,46 @@ public class LoopPager extends ViewPager {
         addOnPageChangeListener(mListener);
         setHorizontalFadingEdgeEnabled(false);
         setVerticalFadingEdgeEnabled(false);
+        setOverScrollMode(OVER_SCROLL_NEVER);
+
+        mScroller = new Scroller(getContext(),new DecelerateInterpolator()){
+            @Override
+            public void startScroll(int startX, int startY, int dx, int dy, int duration) {
+                super.startScroll(startX, startY, dx, dy, 0 != smoothTime?smoothTime:duration);
+            }
+        };
+        try{
+            Field field = ViewPager.class.getDeclaredField("mScroller");
+            field.setAccessible(true);
+            field.set(this,mScroller);
+        }catch (NoSuchFieldException e) {
+            e.printStackTrace();
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void setSmoothTime(int smoothTime) {
+        this.smoothTime = smoothTime;
     }
 
     @Override
     public void setCurrentItem(int item) {
-        int newItem = calculateBoundIndex(item);
+        int newItem = item;
+        if(shouldLoop) {
+            newItem = calculateBoundIndex(item);
+        }
         super.setCurrentItem(newItem);
     }
 
     @Override
     public void setCurrentItem(int item, boolean smoothScroll) {
-        int newItem = calculateBoundIndex(item);
-        if(smoothScroll) {
-            smoothScroll = (newItem == item);
+        int newItem = item;
+        if(shouldLoop) {
+            newItem = calculateBoundIndex(item);
+            if (smoothScroll) {
+                smoothScroll = (newItem == item);
+            }
         }
         super.setCurrentItem(newItem, smoothScroll);
     }
@@ -60,12 +94,14 @@ public class LoopPager extends ViewPager {
 
         @Override
         public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
-            if(null != getAdapter() && getAdapter().getCount() > 1) {
-                int count = getAdapter().getCount();
-                if (position == (count - 2) && positionOffset >= 0.9){
-                    setCurrentItem(1,false);
-                }else if(position == 0 && positionOffset <= 0.1){
-                    setCurrentItem(getAdapter().getCount()-2,false);
+            if(shouldLoop) {
+                if (null != getAdapter() && getAdapter().getCount() > 1) {
+                    int count = getAdapter().getCount();
+                    if (position == (count - 2) && positionOffset >= 0.9) {
+                        changeItem(1);
+                    } else if (position == 0 && positionOffset <= 0.1) {
+                        changeItem(getAdapter().getCount() - 2);
+                    }
                 }
             }
         }
@@ -74,34 +110,47 @@ public class LoopPager extends ViewPager {
 
         @Override
         public void onPageSelected(int position) {
-            if(null != getAdapter()){
-                int count = getAdapter().getCount();
-                if(position == count - 2 && prePos == 0){
-                    prePos = position;
-                    return;
-                }else if(position == 1 && prePos == count - 1){
-                    prePos = position;
-                    return;
+            if(shouldLoop) {
+                if (null != getAdapter()) {
+                    int count = getAdapter().getCount();
+                    if (position == count - 2 && prePos == 0) {
+                        prePos = position;
+                        return;
+                    } else if (position == 1 && prePos == count - 1) {
+                        prePos = position;
+                        return;
+                    }
                 }
+                prePos = position;
             }
             callback(toRealPosition(position));
-            prePos = position;
         }
 
         @Override
         public void onPageScrollStateChanged(int state) {
-            PagerAdapter adapter = getAdapter();
-            if(null != adapter && adapter.getCount() > 1) {
-                if (state == ViewPager.SCROLL_STATE_IDLE) {
-                    if (getCurrentItem() == 0){
-                        setCurrentItem(adapter.getCount()-2,false);
-                    }else if(getCurrentItem() == adapter.getCount()-1){
-                        setCurrentItem(1,false);
+            if(shouldLoop) {
+                PagerAdapter adapter = getAdapter();
+                if (null != adapter && adapter.getCount() > 1) {
+                    if (state == ViewPager.SCROLL_STATE_IDLE) {
+                        if (getCurrentItem() == 0) {
+                            changeItem(adapter.getCount() - 2);
+                        } else if (getCurrentItem() == adapter.getCount() - 1) {
+                            changeItem(1);
+                        }
                     }
                 }
             }
         }
     };
+
+    private void changeItem(final int position){
+        postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                setCurrentItem(position,false);
+            }
+        },1);
+    }
 
     private void callback(int position){
         if(null != realListeners && position >= 0) {
@@ -113,14 +162,16 @@ public class LoopPager extends ViewPager {
 
     private int toRealPosition(int position){
         int result = position;
-        PagerAdapter adapter = getAdapter();
-        if(null != adapter && adapter.getCount() > 1){
-            if (position == 0){
-                result = adapter.getCount()-3;
-            }else if(position == adapter.getCount()-1){
-                result = 0;
-            }else {
-                result = position - 1;
+        if(shouldLoop) {
+            PagerAdapter adapter = getAdapter();
+            if (null != adapter && adapter.getCount() > 1) {
+                if (position == 0) {
+                    result = adapter.getCount() - 3;
+                } else if (position == adapter.getCount() - 1) {
+                    result = 0;
+                } else {
+                    result = position - 1;
+                }
             }
         }
         return result;
@@ -135,36 +186,31 @@ public class LoopPager extends ViewPager {
         realListeners.add(realListener);
     }
 
-    public int getCount(){
-        if(null != getAdapter()){
-            int count = getAdapter().getCount();
-            if(count > 1){
-                return count - 2;
-            }else{
-                return count;
-            }
-        }
-        return 0;
-    }
-
     @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
-        if(null != getAdapter() && getAdapter().getCount() > 1){
-            int nowItem = getCurrentItem();
-            if(nowItem == 0){
-                setCurrentItem(getAdapter().getCount()-2,false);
-            }else if(nowItem == getAdapter().getCount() - 1){
-                setCurrentItem(1,false);
+        if(shouldLoop) {
+            if (null != getAdapter() && getAdapter().getCount() > 1) {
+                int nowItem = getCurrentItem();
+                if (nowItem == 0) {
+                    setCurrentItem(getAdapter().getCount() - 2, false);
+                } else if (nowItem == getAdapter().getCount() - 1) {
+                    setCurrentItem(1, false);
+                }
             }
         }
     }
 
     @Override
     public void setAdapter(PagerAdapter adapter) {
+        if(adapter instanceof BaseLoopAdapter || adapter instanceof BaseFragmentLoopAdapter){
+            shouldLoop = true;
+        }
         super.setAdapter(adapter);
-        if(null != adapter && adapter.getCount() > 1){
-            setCurrentItem(1,false);
+        if(shouldLoop) {
+            if (null != adapter && adapter.getCount() > 1) {
+                setCurrentItem(1, false);
+            }
         }
     }
 }

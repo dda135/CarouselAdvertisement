@@ -1,10 +1,6 @@
 package fanjh.mine.library;
 
-import android.content.Context;
 import android.support.v4.view.PagerAdapter;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /**
 * @author fanjh

@@ -4,6 +4,7 @@ import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.Toast;
 
 import fanjh.mine.library.LoopAdvertAdapter;
 
@@ -21,5 +22,15 @@ public class ImageAdapter extends LoopAdvertAdapter<Integer> {
         ImageView imageView = new ImageView(getContext());
         imageView.setImageResource(item);
         return imageView;
+    }
+
+    @Override
+    public void bindView(View view, final Integer item) {
+        view.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Toast.makeText(getContext(),item+"",Toast.LENGTH_LONG).show();
+            }
+        });
     }
 }

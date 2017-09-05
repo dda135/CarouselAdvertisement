@@ -75,13 +75,8 @@ public class LoopPager extends ViewPager {
         super.setCurrentItem(newItem, smoothScroll);
     }
 
-    /**
-     * 处理边界问题
-     * @param item 当前想要设置的页码
-     * @return 处理后的合理页码
-     */
     private int calculateBoundIndex(int item){
-        if(null != getAdapter()){//处理一下边界问题
+        if(null != getAdapter()){
             int sumCount = getAdapter().getCount();
             if(item >= sumCount){
                 return Math.min(1,sumCount-1);
@@ -91,19 +86,23 @@ public class LoopPager extends ViewPager {
     }
 
     private OnPageChangeListener mListener = new OnPageChangeListener() {
+        private float prePositionOffset;
 
         @Override
         public void onPageScrolled(int position, float positionOffset, int positionOffsetPixels) {
             if(shouldLoop) {
                 if (null != getAdapter() && getAdapter().getCount() > 1) {
                     int count = getAdapter().getCount();
-                    if (position == (count - 2) && positionOffset >= 0.9) {
+                    if (((position == (count - 2) && positionOffset >= 0.9)
+                            || ((position == count - 1) && positionOffset == 0))
+                            && prePositionOffset < 0.9) {
                         changeItem(1);
-                    } else if (position == 0 && positionOffset <= 0.1) {
+                    } else if (position == 0 && positionOffset <= 0.1 && prePositionOffset > 0.1) {
                         changeItem(getAdapter().getCount() - 2);
                     }
                 }
             }
+            prePositionOffset = positionOffset;
         }
 
         private int prePos;
@@ -127,20 +126,7 @@ public class LoopPager extends ViewPager {
         }
 
         @Override
-        public void onPageScrollStateChanged(int state) {
-            if(shouldLoop) {
-                PagerAdapter adapter = getAdapter();
-                if (null != adapter && adapter.getCount() > 1) {
-                    if (state == ViewPager.SCROLL_STATE_IDLE) {
-                        if (getCurrentItem() == 0) {
-                            changeItem(adapter.getCount() - 2);
-                        } else if (getCurrentItem() == adapter.getCount() - 1) {
-                            changeItem(1);
-                        }
-                    }
-                }
-            }
-        }
+        public void onPageScrollStateChanged(int state) {}
     };
 
     private void changeItem(final int position){
